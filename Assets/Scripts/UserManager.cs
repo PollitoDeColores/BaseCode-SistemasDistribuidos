@@ -177,7 +177,7 @@ public class UserManager : MonoBehaviour
         newData.score = newScore;
         string json = JsonUtility.ToJson(newData);
 
-        UnityWebRequest request = UnityWebRequest.Put(url + "/api/usuarios/" + Username, json);
+        UnityWebRequest request = UnityWebRequest.Put(url + "/api/scores/" + Username, json);
         request.method = "PATCH";
         request.SetRequestHeader("Content-Type", "application/json");
         request.SetRequestHeader("x-token", Token);
@@ -196,7 +196,7 @@ public class UserManager : MonoBehaviour
             }
             else
             {
-                Debug.Log("Error al actualizar puntaje");
+                Debug.Log("Error al actualizar puntaje" + request.responseCode);
             }
         }
     }
