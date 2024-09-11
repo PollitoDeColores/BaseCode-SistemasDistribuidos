@@ -1,185 +1,237 @@
-using UnityEngine.Networking;
-using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 using TMPro;
+using UnityEngine.Networking;
+using System.Linq;
+using UnityEngine.SceneManagement;
+using Unity.VisualScripting;
 
 public class UserManager : MonoBehaviour
 {
-    public GameObject scorePrefab;
-    public Transform content; 
+    public TMP_Text puntajesText;
+    string url = "https://sid-restapi.onrender.com";
+    public string Token { get; private set; }
+    public string Username { get; private set; }
+    public GameObject panelAuth;
 
-    [SerializeField] GameObject _Login;
-    [SerializeField] GameObject _Signin;
-    [SerializeField] GameObject _Scores;
-
-    [SerializeField] TextMeshProUGUI ErrorMSG_Signin;
-    [SerializeField] TextMeshProUGUI ErrorMSG_Login;
-    [SerializeField] TextMeshProUGUI ErrorMSG_Scores;
-
-    private string registerUrl = "https://sid-restapi.onrender.com/register";
-    private string loginUrl = "https://sid-restapi.onrender.com/login";
-    private string scoreUrl = "https://sid-restapi.onrender.com/score";
-    private string scoresUrl = "https://sid-restapi.onrender.com/scores";
-
-
-    void Awake()
+    void Start()
     {
-        _Login.SetActive(false);
-        _Scores.SetActive(false);
-        _Signin.SetActive(true);
-    }
-    public void RegisterUser(string username, string password)
-    {
-        StartCoroutine(RegisterCoroutine(username, password));
-    }
+        Token = PlayerPrefs.GetString("token");
 
-    private IEnumerator RegisterCoroutine(string username, string password)
-    {
-        WWWForm form = new WWWForm();
-        form.AddField("username", username);
-        form.AddField("password", password);
-
-        using (UnityWebRequest www = UnityWebRequest.Post(registerUrl, form))
+        if (string.IsNullOrEmpty(Token))
         {
-            yield return www.SendWebRequest();
+            Debug.Log("No hay Token");
+            panelAuth.SetActive(true);
+        }
+        else
+        {
+            Username = PlayerPrefs.GetString("username");
+            StartCoroutine(GetProfile());
+            panelAuth.SetActive(false); // Oculta el panel si el token está presente
+        }
+    }
 
-            if (www.result != UnityWebRequest.Result.Success)
+    public void enviarRegistro()
+    {
+        string username = GameObject.Find("InputFieldUsername").GetComponent<TMP_InputField>().text;
+        string password = GameObject.Find("InputFieldPassword").GetComponent<TMP_InputField>().text;
+
+        StartCoroutine(Registro(JsonUtility.ToJson(new AuthenticationData { username = username, password = password })));
+    }
+
+    public void enviarLogin()
+    {
+        string username = GameObject.Find("InputFieldUsername").GetComponent<TMP_InputField>().text;
+        string password = GameObject.Find("InputFieldPassword").GetComponent<TMP_InputField>().text;
+
+        StartCoroutine(Login(JsonUtility.ToJson(new AuthenticationData { username = username, password = password })));
+    }
+
+    public void CerrarSesion()
+    {
+        PlayerPrefs.DeleteKey("token");
+        panelAuth.SetActive(true);
+    }
+
+    public void ActualizarPuntaje()
+    {
+        string _newScore = GameObject.Find("InputFieldPuntaje").GetComponent<TMP_InputField>().text;
+        if (int.TryParse(_newScore, out int result)){
+            int newScore = int.Parse(_newScore);
+            StartCoroutine(UpdateScore(newScore));
+        }
+        else puntajesText.text = "El puntaje solo recibe números, corrijalo por favor";
+    }
+
+    public void VerPerfiles(){
+        StartCoroutine(GetProfile());
+    }
+
+    IEnumerator Registro(string json)
+    {
+        UnityWebRequest request = UnityWebRequest.Put(url + "/api/usuarios", json);
+        request.method = UnityWebRequest.kHttpVerbPOST;
+        request.SetRequestHeader("content-Type", "application/json");
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.ConnectionError)
+        {
+            Debug.Log(request.error);
+        }
+        else
+        {
+            Debug.Log(request.downloadHandler.text);
+
+            if (request.responseCode == 200)
             {
-                ErrorMSG_Signin.text = "Error: " + www.error;
+                Debug.Log("Registro Exitoso!");
+                StartCoroutine(Login(json));
             }
             else
             {
-                ErrorMSG_Signin.text = "User registered successfully";
-                yield return new WaitForSeconds(3f);
-                _Signin.SetActive(false);
-                _Login.SetActive(true);
+                Debug.Log(request.responseCode + "|" + request.error);
             }
         }
     }
 
-    public void LoginUser(string username, string password)
+    IEnumerator Login(string json)
     {
-        StartCoroutine(LoginCoroutine(username, password));
-    }
+        UnityWebRequest request = UnityWebRequest.Put(url + "/api/auth/login", json);
+        request.method = UnityWebRequest.kHttpVerbPOST;
+        request.SetRequestHeader("content-Type", "application/json");
+        yield return request.SendWebRequest();
 
-    private IEnumerator LoginCoroutine(string username, string password)
-    {
-        WWWForm form = new WWWForm();
-        form.AddField("username", username);
-        form.AddField("password", password);
-
-        using (UnityWebRequest www = UnityWebRequest.Post(loginUrl, form))
+        if (request.result == UnityWebRequest.Result.ConnectionError)
         {
-            yield return www.SendWebRequest();
+            Debug.Log(request.error);
+        }
+        else
+        {
+            Debug.Log(request.downloadHandler.text);
 
-            if (www.result != UnityWebRequest.Result.Success)
+            if (request.responseCode == 200)
             {
-                Debug.LogError("Error: " + www.error);
+                AuthenticationData data = JsonUtility.FromJson<AuthenticationData>(request.downloadHandler.text);
+                Token = data.token;
+                Username = data.username;
+                PlayerPrefs.SetString("token", Token);
+                PlayerPrefs.SetString("username", Username);
+
+                Debug.Log(data.token);
+
+            
+                panelAuth.SetActive(false);
             }
             else
             {
-                // Process the response, e.g., save the token
-                string jsonResponse = www.downloadHandler.text;
-                // Assuming response contains a JSON object with a "token" field
-                TokenResponse response = JsonUtility.FromJson<TokenResponse>(jsonResponse);
-                string token = response.token;
-                PlayerPrefs.SetString("AuthToken", token);
+                Debug.Log(request.responseCode + "|" + request.error);
             }
         }
     }
-    public bool IsUserAuthenticated()
-    {
-        return !string.IsNullOrEmpty(PlayerPrefs.GetString("AuthToken", null));
-    }
 
-    public void UpdateScore(string username, int score)
-    {
-        StartCoroutine(UpdateScoreCoroutine(username, score));
-    }
 
-    private IEnumerator UpdateScoreCoroutine(string username, int score)
+    IEnumerator GetProfile()
     {
-        WWWForm form = new WWWForm();
-        form.AddField("username", username);
-        form.AddField("score", score);
+        UnityWebRequest request = UnityWebRequest.Get(url + "/api/usuarios/" + Username);
+        request.SetRequestHeader("x-token", Token);
+        yield return request.SendWebRequest();
 
-        using (UnityWebRequest www = UnityWebRequest.Post(scoreUrl, form))
+        if (request.result == UnityWebRequest.Result.ConnectionError)
         {
-            yield return www.SendWebRequest();
+            Debug.Log(request.error);
+        }
+        else
+        {
+            Debug.Log(request.downloadHandler.text);
 
-            if (www.result != UnityWebRequest.Result.Success)
+            if (request.responseCode == 200)
             {
-                ErrorMSG_Scores.text = "Error: " + www.error;
+                AuthResponse response = JsonUtility.FromJson<AuthResponse>(request.downloadHandler.text);
+
+                response.usuarios = response.usuarios.OrderByDescending(u => u.data.score).ToList();
+
+                string puntajesInfo = "";
+
+                int count = Mathf.Min(5, response.usuarios.Count); 
+
+                for (int i = 0; i < count; i++)
+                {
+                    var usuario = response.usuarios[i];
+                    puntajesInfo += "El usuario " + usuario.username + " tiene un puntaje de " + usuario.data.score + "\n";
+                }
+
+                puntajesText.text = puntajesInfo;
             }
             else
             {
-                ErrorMSG_Scores.text = "Score updated successfully";
+                Debug.Log("El usuario no está autenticado");
             }
         }
     }
-    public void GetScores()
-    {
-        StartCoroutine(GetScoresCoroutine());
-    }
 
-    private IEnumerator GetScoresCoroutine()
+
+    IEnumerator UpdateScore(int newScore)
     {
-        using (UnityWebRequest www = UnityWebRequest.Get(scoresUrl))
+        DataUser newData = new DataUser();
+        newData.score = newScore;
+        string json = JsonUtility.ToJson(newData);
+
+        UnityWebRequest request = UnityWebRequest.Put(url + "/api/usuarios/" + Username, json);
+        request.method = "PATCH";
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("x-token", Token);
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.ConnectionError)
         {
-            yield return www.SendWebRequest();
-
-            if (www.result != UnityWebRequest.Result.Success)
+            Debug.Log(request.error);
+        }
+        else
+        {
+            if (request.responseCode == 200)
             {
-                Debug.LogError("Error: " + www.error);
+                Debug.Log("Puntaje actualizado con éxito");
+                StartCoroutine(GetProfile()); // Actualizar la lista de puntajes después de actualizar el puntaje del usuario
             }
             else
             {
-                // Process the response
-                string jsonResponse = www.downloadHandler.text;
-                Score[] scores = JsonUtility.FromJson<ScoreList>(jsonResponse).scores;
-
-                // Sort the scores
-                System.Array.Sort(scores, (x, y) => y.score.CompareTo(x.score));
-
-                DisplayScores(scores);
+                Debug.Log("Error al actualizar puntaje");
             }
         }
     }
-    private void DisplayScores(Score[] scores)
+
+
+
+    [System.Serializable]
+    public class AuthResponse
     {
-               // Limpiar el contenido actual
-        foreach (Transform child in content)
-        {
-            Destroy(child.gameObject);
-        }
-
-        // Instanciar y agregar los elementos de puntaje
-        foreach (Score score in scores)
-        {
-            GameObject scoreObject = Instantiate(scorePrefab, content);
-            TextMeshProUGUI scoreText = scoreObject.GetComponent<TextMeshProUGUI>(); // Usa Text en lugar de TextMeshProUGUI si no usas TMP
-
-            scoreText.text = $"{score.username}: {score.score}";
-        }
-    }
+        public List<UsuarioJson> usuarios;
     }
 
     [System.Serializable]
-    public class Score
+    public class AuthenticationData
     {
         public string username;
+        public string password;
+        public UsuarioJson usuario;
+        public string token;
+        public bool estado;
+        public DataUser data;
+    }
+
+    [System.Serializable]
+    public class UsuarioJson
+    {
+        public string _id;
+        public string username;
+        public DataUser data;
+    }
+
+    [System.Serializable]
+    public class DataUser
+    {
         public int score;
     }
-
-    [System.Serializable]
-    public class ScoreList
-    {
-        public Score[] scores;
-    }
-    [System.Serializable]
-    public class TokenResponse
-    {
-        public string token;
-    }
-
+}
 
