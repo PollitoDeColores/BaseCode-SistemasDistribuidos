@@ -70,3 +70,9 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+Lemegeton_UnityProject/.vsconfig
+Lemegeton_UnityProject/Logs
+*.wlt
+/Lemegeton_UnityProject/Library
+/Lemegeton_UnityProject/Temp
+Assets/Firebase/Plugins/x86_64/FirebaseCppApp-11_8_1.bundle

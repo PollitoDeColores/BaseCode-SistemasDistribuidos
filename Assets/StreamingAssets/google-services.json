@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "150594175734",
+    "firebase_url": "https://projectid-15597-default-rtdb.firebaseio.com",
+    "project_id": "projectid-15597",
+    "storage_bucket": "projectid-15597.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:150594175734:android:fb7ee3432ad0b5604262d7",
+        "android_client_info": {
+          "package_name": "com.Santiago.AburridoYFrustrado3"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyByV2OrkWpcXOgCy7qrHy1TTJosODG1bZc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
